@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import { FolderKanban, CheckCircle2 } from "lucide-react";
 import { DashboardLayout } from "@/components/layout";
@@ -17,18 +18,25 @@ type Project = {
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
-  const [completed, setCompleted] = useState<Set<string>>(new Set());
+  const [completedProjects, setCompletedProjects] = useState<string[]>([]);
 
   useEffect(() => {
-    fetch("/api/catalog").then((r) => r.json()).then((d) => setProjects(d.projects || [])).catch(() => {});
+    fetch("/api/catalog")
+      .then((r) => r.json())
+      .then((d) => {
+        console.log("Projects:", d.projects);
+        setProjects(d.projects || []);
+      })
+      .catch(() => {});
   }, []);
 
-  function toggleComplete(id: string) {
-    setCompleted((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
+  function toggleComplete(projectId: string) {
+    setCompletedProjects((prev) => {
+      if (prev.includes(projectId)) {
+        return prev.filter((id) => id !== projectId);
+      }
+
+      return [...prev, projectId];
     });
   }
 
@@ -41,64 +49,109 @@ export default function ProjectsPage() {
       />
 
       <div className="grid md:grid-cols-2 gap-4">
-        {projects.map((p) => (
-          <Card key={p.id}>
-            <div className="flex items-start justify-between mb-3">
-              <FolderKanban className="h-6 w-6 text-violet-400" />
-              <Badge color="violet">{p.difficulty}</Badge>
-            </div>
-            <h3 className="font-semibold text-lg mb-2">{p.title}</h3>
-            <p className="text-sm text-slate-400 mb-4">{p.description}</p>
+        {projects.map((project) => {
+          const isCompleted = completedProjects.includes(project.id);
 
-            <div className="mb-4">
-              <div className="text-xs uppercase tracking-wider text-slate-400 mb-2">Skills</div>
-              <div className="flex flex-wrap gap-1">
-                {p.skills.map((s) => (
-                  <span key={s} className="chip text-[10px]">{s}</span>
-                ))}
+          return (
+            <Card key={project.id}>
+              <div className="flex items-start justify-between mb-3">
+                <FolderKanban className="h-6 w-6 text-violet-400" />
+
+                <Badge color="violet">
+                  {project.difficulty}
+                </Badge>
               </div>
-            </div>
 
-            {p.technologies && (
+              <h3 className="font-semibold text-lg mb-2">
+                {project.title}
+              </h3>
+
+              <p className="text-sm text-slate-400 mb-4">
+                {project.description}
+              </p>
+
+              {/* Skills */}
               <div className="mb-4">
-                <div className="text-xs uppercase tracking-wider text-slate-400 mb-2">Technologies</div>
+                <div className="text-xs uppercase tracking-wider text-slate-400 mb-2">
+                  Skills
+                </div>
+
                 <div className="flex flex-wrap gap-1">
-                  {p.technologies.map((t) => (
-                    <span key={t} className="chip text-[10px]">{t}</span>
+                  {project.skills.map((skill) => (
+                    <span
+                      key={skill}
+                      className="chip text-[10px]"
+                    >
+                      {skill}
+                    </span>
                   ))}
                 </div>
               </div>
-            )}
 
-            {p.features && (
-              <div className="mb-4">
-                <div className="text-xs uppercase tracking-wider text-slate-400 mb-2">Features</div>
-                <ul className="text-sm text-slate-300 space-y-1">
-                  {p.features.slice(0, 3).map((f, i) => (
-                    <li key={i} className="flex items-start gap-2">
-                      <span className="text-cyan-400">•</span>
-                      <span>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+              {/* Technologies */}
+              {project.technologies &&
+                project.technologies.length > 0 && (
+                  <div className="mb-4">
+                    <div className="text-xs uppercase tracking-wider text-slate-400 mb-2">
+                      Technologies
+                    </div>
 
-            <Button
-              onClick={() => toggleComplete(p.id)}
-              variant={completed.has(p.id) ? "success" : "ghost"}
-              className="w-full"
-            >
-              {completed.has(p.id) ? (
-                <>
-                  <CheckCircle2 className="h-4 w-4" /> Completed
-                </>
-              ) : (
-                "Mark Complete"
-              )}
-            </Button>
-          </Card>
-        ))}
+                    <div className="flex flex-wrap gap-1">
+                      {project.technologies.map((technology) => (
+                        <span
+                          key={technology}
+                          className="chip text-[10px]"
+                        >
+                          {technology}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+              {/* Features */}
+              {project.features &&
+                project.features.length > 0 && (
+                  <div className="mb-4">
+                    <div className="text-xs uppercase tracking-wider text-slate-400 mb-2">
+                      Features
+                    </div>
+
+                    <ul className="text-sm text-slate-300 space-y-1">
+                      {project.features.slice(0, 3).map((feature, index) => (
+                        <li
+                          key={`${project.id}-feature-${index}`}
+                          className="flex items-start gap-2"
+                        >
+                          <span className="text-cyan-400">
+                            •
+                          </span>
+
+                          <span>{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+              {/* Complete Button */}
+              <Button
+                onClick={() => toggleComplete(project.id)}
+                variant={isCompleted ? "success" : "ghost"}
+                className="w-full"
+              >
+                {isCompleted ? (
+                  <>
+                    <CheckCircle2 className="h-4 w-4" />
+                    Completed
+                  </>
+                ) : (
+                  "Mark Complete"
+                )}
+              </Button>
+            </Card>
+          );
+        })}
       </div>
     </DashboardLayout>
   );
